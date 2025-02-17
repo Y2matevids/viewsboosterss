@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Video Frames with Custom Looping</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #controls {
+            margin: 20px;
+        }
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            width: 100%;
+            max-width: 90vw;
+        }
+        .frame {
+            width: 200px;
+            height: 150px;
+            background: #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #ddd;
+        }
+        #playAll {
+            display: none; /* Hidden by default */
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <input type="text" id="videoLink" placeholder="Paste YouTube link here" size="50">
+        <button id="generateFrames">Generate Frames</button>
+        <button id="playAll">Play All Videos</button>
+    </div>
+    <div id="grid"></div>
+
+    <script>
+        const grid = document.getElementById('grid');
+        const generateFramesButton = document.getElementById('generateFrames');
+        const playAllButton = document.getElementById('playAll');
+        const videoLinkInput = document.getElementById('videoLink');
+        const TOTAL_FRAMES = 20; // Number of frames to create
+        const LOOP_INTERVALS = [60, 120, 180]; // Loop intervals in seconds: 1 min, 2 min, 3 min
+        let videoId = '';
+        let framesLoaded = 0;
+        let players = []; // Array to store YT.Player instances
+
+        // Load the YouTube IFrame API
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        // Function called by the YouTube API once it's ready
+        function onYouTubeIframeAPIReady() {
+            generateFramesButton.addEventListener('click', () => {
+                const url = videoLinkInput.value;
+                const urlParams = new URLSearchParams(new URL(url).search);
+                videoId = urlParams.get('v');
+
+                if (!videoId) {
+                    alert('Invalid YouTube link.');
+                    return;
+                }
+
+                grid.innerHTML = ''; // Clear previous frames
+                framesLoaded = 0;
+                playAllButton.style.display = 'none'; // Hide the play button
+                players = []; // Reset players array
+
+                for (let i = 0; i < TOTAL_FRAMES; i++) {
+                    const playerDiv = document.createElement('div');
+                    playerDiv.id = `player${i}`;
+                    playerDiv.className = 'frame';
+                    grid.appendChild(playerDiv);
+
+                    // Create a new YouTube player
+                    const player = new YT.Player(playerDiv.id, {
+                        height: '150',
+                        width: '200',
+                        videoId: videoId,
+                        playerVars: {
+                            'autoplay': 0,
+                            'controls': 0,
+                            'mute': 1,
+                            'vq': 'small'
+                        },
+                        events: {
+                            'onReady': onPlayerReady,
+                            'onStateChange': onPlayerStateChange
+                        }
+                    });
+
+                    players.push(player);
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            framesLoaded++;
+            if (framesLoaded === TOTAL_FRAMES) {
+                playAllButton.style.display = 'inline-block'; // Show the play button
+            }
+        }
+
+        function onPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.PLAYING) {
+                const playerIndex = players.indexOf(event.target);
+                const loopDuration = LOOP_INTERVALS[playerIndex % LOOP_INTERVALS.length];
+                setTimeout(() => {
+                    event.target.seekTo(0);
+                }, loopDuration * 1000);
+            }
+        }
+
+        playAllButton.addEventListener('click', () => {
+            players.forEach(player => {
+                player.playVideo();
+            });
+        });
+    </script>
+</body>
+</html>
